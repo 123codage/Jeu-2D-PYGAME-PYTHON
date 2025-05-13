@@ -1,5 +1,5 @@
-from classes.Game2D import Game2D, Player, Event, Animation, LifeBar, EntitiesManager
-from classes.common import Color, Shape, Circle, Text, DEBUG, Chronometer
+from classes.Game2D import Game2D, Player, Event, Animation, LifeBar, EntitiesManager, SpeechBubble, TeleportationPoint
+from classes.common import Color, Shape, Circle, Text, DEBUG, Chronometer, PlannerShapes, ShapeImage
 
 
 class MyGame(Game2D):
@@ -11,7 +11,8 @@ class MyGame(Game2D):
         screen_width=1200,		# Largeur de l’écran en pixel
         screen_height=600,		# Hauteur de l’écran en pixel
         fill_color=Color.LIGHTGRAY,	# Couleur du fond de l’écran
-        fps=20				# Nombre d’images par seconde
+        fps=20,				# Nombre d’images par seconde
+        screenRotation=False
     ):
         super().__init__(
             caption,
@@ -21,8 +22,13 @@ class MyGame(Game2D):
             screen_height,
             fill_color,
             fps,
+            screenRotation
         )
+    """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
+    Génération du player et de ses animations graphiques et sonores
+
+    """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
     def generatePlayer(self):
         # Création d'un joueur
         player = Player(300, 200, 10, 20, Color.GREEN)
@@ -50,13 +56,20 @@ class MyGame(Game2D):
                           "LEFT" : ["SF-course_beton-2.mp3"],
                           "RIGHT" : ["SF-course_beton-2.mp3"]}
 
-        animation = Animation(ANIMATIONS_PLAYER, "images/player", (100, 200),  scale=0.5, delay=5, soundAnimation = SOUNDS_PLAYER, soundPath = "sounds")
+        animation = Animation(ANIMATIONS_PLAYER, "images/player", (100, 200),  scale=0.25, delay=5, soundAnimation = SOUNDS_PLAYER, soundPath = "sounds")
 
-        # Affextation de l'animation au joueur
-        player.loadAnimations(animation, "IDLE", 20, 80)
+        # Affectation de l'animation au joueur
+        player.loadAnimations(animation, "IDLE", 8, 30)
+
+        player.setNbrLifes(5)
 
         return player
 
+    """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+    Génération des jetons avec les animations graphiques et sonores
+
+    """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
     def generateToken(self):
         # Animations graphiques du jeton
         ANIMATIONS_TOKEN = {
@@ -67,12 +80,18 @@ class MyGame(Game2D):
         SOUNDS_TOKEN = { "DEAD" : ["hit_12.wav"]}
 
         # création de l'animation du jeton
-        animationToken = Animation(ANIMATIONS_TOKEN, "images/token", (128, 128), scale=0.5, delay=1, soundAnimation = SOUNDS_TOKEN, soundPath = "sounds")
+        animationToken = Animation(ANIMATIONS_TOKEN, "images/token", (128, 128), scale=0.25, delay=6, soundAnimation = SOUNDS_TOKEN, soundPath = "sounds")
         # création d'un token et affectation de son animation
-        token = Circle(50, 50, 30, (255, 255, 0))
+        token = Circle(50, 50, 16, (255, 255, 0))
         token.loadAnimations(animationToken, "WAIT")
         return token
 
+
+    """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+    Génération des monstres avec les animations graphiques et sonores
+
+    """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
     def generateMonster(self):
 
         ANIMATIONS_MONSTER = {
@@ -82,13 +101,18 @@ class MyGame(Game2D):
 
         SOUNDS_MONSTER = { "DEAD" : ["sf_defenestration_01.mp3"]}
 
-        animationMonster = Animation(ANIMATIONS_MONSTER, "images/Monsters", (32, 32), scale=2, delay=1, soundAnimation = SOUNDS_MONSTER, soundPath = "Sounds")
+        animationMonster = Animation(ANIMATIONS_MONSTER, "images/Monsters", (32, 32), scale=1, delay=1, soundAnimation = SOUNDS_MONSTER, soundPath = "Sounds")
 
-        monster = Shape(300, 750, 32, 32*2, Color.RED)
-        monster.loadAnimations(animationMonster, "WALK", 16, 0)
+        monster = Shape(300, 750, 32, 32, Color.RED)
+        monster.loadAnimations(animationMonster, "WALK", 0, 0)
 
         return monster
 
+    """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+    Génération des points de passages
+
+    """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
     def generateFlag(self):
 
         ANIMATIONS_FLAG = {
@@ -96,30 +120,105 @@ class MyGame(Game2D):
             "FIXED": ["red flag.png:1:H"],
         }
 
-        animationFlag = Animation(ANIMATIONS_FLAG, "images/flag", (64, 64), scale=1, delay=1)
+        animationFlag = Animation(ANIMATIONS_FLAG, "images/flag", (64, 64), scale=0.5, delay=10)
 
-        flag = Shape(200, 513, 64, 64, Color.RED)
+        flag = Shape(200, 513, 32, 32, Color.RED)
         flag.loadAnimations(animationFlag, "FIXED", 0, 0)
 
         return flag
 
+    """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
-    """
-    Organiser tous les déplacements des objets de votre jeu
-    """
-    def myUpdate(self):
+    Génération des portes
+
+    """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+    class Gate():
+        # Initialisation de l'objet
+        def __init__(self):
+            ANIMATIONS_GATE = {"OPEN": ["door 02 64x64.png:2:H"]}
+
+            animationGate = Animation(ANIMATIONS_GATE, "images/gates", (64, 64), scale=1, delay=10)
+
+            self.gate = Shape(1410, 355, 128, 64, Color.RED)
+            self.gate.loadAnimations(animationGate, "OPEN", -32, 0)
+            self.state = False
+
+            self.teleportationPoint = TeleportationPoint((2000,355), 1470, 355)
+
+        def move(self):
+            self.state = not self.state
+            self.gate.move()
+
+        def draw(self, screen, camera):
+            self.gate.draw(screen, camera)
+
+        def isOpen(self):
+            return self.state
+
+        def isCollide(self, collider):
+            return self.gate.isCollide(collider)
+
+        def isTeleport(self, collider):
+            return self.teleportationPoint.isCollide(collider)
+
+        def goTeleport(self, collider):
+            self.teleportationPoint.go(collider)
+
+    """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+    Génération des jetons avec les animations graphiques et sonores
+
+    """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+    def generateBigBird(self):
+        # Animations graphiques du jeton
+        ANIMATIONS = {
+            "FLY": ["parrot-a.png", "parrot-b.png"],
+            "DEAD": ["parrot-b.png"]        }
+        # son lorsque le jeton est touché par le joueur
+        SOUNDS = { "DEAD" : ["hit_12.wav"]}
+
+        # création de l'animation du jeton
+        animationBird = Animation(ANIMATIONS, "images/bird", (169, 142), scale=0.25, delay=10, soundAnimation = SOUNDS, soundPath = "sounds")
+        bird = Shape(100, 100, 42, 35, Color.RED)
+        bird.loadAnimations(animationBird, "FLY")
+        bird.moveToTarget([2000,300],5)
+        return bird
+
+    def generateLittleBird(self):
+        # Animations graphiques du jeton
+        ANIMATIONS = {
+            "FLY": ["parrot-a.png", "parrot-b.png"],
+            "DEAD": ["parrot-b.png"]        }
+        # son lorsque le jeton est touché par le joueur
+        SOUNDS = { "DEAD" : ["hit_12.wav"]}
+
+        # création de l'animation du jeton
+        animationBird = Animation(ANIMATIONS, "images/bird", (169, 142), scale=0.15, delay=8, soundAnimation = SOUNDS, soundPath = "sounds")        # création d'un token et affectation de son animation
+        bird = Shape(50, 50, 25, 21, Color.RED)
+        bird.loadAnimations(animationBird, "FLY")
+        bird.moveToTarget([2000,100],3)
+        birds = EntitiesManager(bird, 1, 100, 100, 600, Game2D.SIZE[1]-300)
+        bird.moveToTarget([1500,500],5)
+        birds.addEntity(bird)
+        bird.moveToTarget([2000,100],3)
+        birds.addEntity(bird)
+
+        return birds
+
+    def myUpdateLevel(self, level, step):
+        global flags
         global monsters
         global tokens
-        global flags
 
         """
         Chargement des niveaux
         """
         # Chargement du niveau 1
-        if self.level == 0 :
-
+        if level == 0 :
+            self.setDarken()
             # Chargement des maps TILED
-            self.loadTiled("Farwest Level 01.tmx", "tiled\\", level=1, x=200, y=300)
+            self.loadTiled("Farwest Level 01.tmx", "tiled", level=1, x=200, y=400, sound="sounds/ambiance/tearstream-alley-262939.mp3")
 
             # Gestion de l'action de la gravité sur le joueur avec le sol
             # Déclaration des sols
@@ -127,24 +226,30 @@ class MyGame(Game2D):
             self.gravity.addFloor(platform01)
             self.gravity.addFloor(platform02)
             self.gravity.addFloor(platform03)
+            self.gravity.addFloor(platform04)
+
 
             # Génération des jetons
             token = self.generateToken()
             # générateur de topkens
-            #tokens = EntitiesManager(token, 10, 100, 150, Game2D.SIZE[0], Game2D.SIZE[1]-300)
-            tokens = EntitiesManager(token, ((120,300),(400,200),(800,100),(1100,210)))
+            tokens = None
+            tokens = EntitiesManager(token, 10, 20, 250, Game2D.SIZE[0]-100, Game2D.SIZE[1]-180)
+            #tokens = EntitiesManager(token, ((120,300),(400,200),(800,100),(1100,210)))
             tokens.moveToTarget([0,100],10)
 
             platform01.moveToTarget([0,100],5)
+            platform04.moveToTarget([0,150],2)
+
 
             # Générations des flags
             flag = self.generateFlag()
-            flags = EntitiesManager(flag, ((3500,370),(Game2D.SIZE[0]-300, 513)))
+            flags = EntitiesManager(flag, ((3500,402), (7900,102), (Game2D.SIZE[0]-300, 545)))
+
 
         # Chargement du niveau 2
-        if self.level == 1 and self.step == 2 and player.rect.x > Game2D.SIZE[0] - 40 :
-            self.setDarken()
-            self.loadTiled("Farwest Level 02.tmx", "tiled\\", level=2, x=400, y=400)
+        if level == 1 and step == 3 and player.rect.x > Game2D.SIZE[0] - 40 :
+            self.setDarken(Color.BLUE)
+            self.loadTiled("Farwest Level 02 bis.tmx", "tiled", level=2, x=400, y=400)
 
             platform01.setStartPoint((350,280))
             platform02.setStartPoint((1000,400))
@@ -162,8 +267,51 @@ class MyGame(Game2D):
             platform03.moveToTarget([100,0],5)
 
             flag = self.generateFlag()
-            flags = EntitiesManager(flag, ((800,150),(Game2D.SIZE[0]-300, 513)))
+            flags = EntitiesManager(flag, ((800,182),(Game2D.SIZE[0]-300, 545)))
 
+        """
+        Gestion du niveau 1
+        """
+        if level == 1 :
+            """
+            Génération de monstres au niveau 1 après 3 secondes de jeu
+            """
+            if monsters == None and self.getChronoLevel() > 3 :
+                monster = self.generateMonster()
+                monsters = None
+                monsters = EntitiesManager(monster, 10, 100, 150, Game2D.SIZE[0], Game2D.SIZE[1]-300)
+                monsters.moveToTarget(player,5)
+                self.gravity.addObject(monsters)
+                self.collisionsManager.addMovingObject(monsters)
+            """
+            controle du temps du joueur sur le niveau 1
+            """
+            if step == 0 and self.getChronoStep() >= 40 and not(chrono.isStarted()) :
+                chrono.start(10)
+
+            if step == 1 and self.getChronoStep() >= 190 and not(chrono.isStarted()) :
+                chrono.start(10)
+
+
+            if chrono.isFinished():
+                chrono.stop()
+                self.goToStartOfLevel() # le joueur repart au début de la scène
+                self.player.lessLifes() # il perd une vie
+                hearts.refresh(self.player.getNbrLifes())
+                speechBubblePlayer.goToTarget(player, "Zut  fin de mon temps ...")
+                speechBubblePlayer.setShow(True,3)
+
+
+
+
+    """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+    Conditions et déplacements des objets de votre jeu
+
+    """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+    def myUpdate(self):
+        global flags
+        global closedGate
 
         """
         Mouvements pour tous les niveaux
@@ -172,26 +320,40 @@ class MyGame(Game2D):
         platform01.move()
         platform02.move()
         platform03.move()
+        platform04.move()
+
+        if gate :
+            if gate.isCollide(player) :
+                if not gate.isOpen() :
+                    gate.move()
+                if gate.isTeleport(player):
+                    self.setDarken(Color.GREEN, darken = 80)
+                    gate.goTeleport(player)
+            else:
+                if gate.isOpen() :
+                    gate.move()
 
         if monsters :
             monsters.move()
-            # Le joueur saute sur le mosntre
-            monster = monsters.isJumpOnIt(player)
-            if monster :
-                # Création d'un monstre qui va mourir
-                self.destructionManager.addEntity(monster,1, "DEAD")
-                # Destruction du monstre dans la liste des monstres
-                monsters.remove_entity(monster)
-
             # Quand un monstre rencontre le palyer
             monster = monsters.isCollide(player)
             if monster :
-                # Le joueur recommence au début du niveau
-                self.goToStartOfLevel()
-                # Le joueur perd une vie
-                if self.player.getNbrLifes() > 0:
-                    self.player.lessLifes()
-                    hearts.refresh(self.player.getNbrLifes())
+                if monster.isJumpOnIt(player):
+                    # Création d'un monstre qui va mourir
+                    self.destructionManager.addEntity(monster,1, "DEAD")
+                    # Destruction du monstre dans la liste des monstres
+                    monsters.remove_entity(monster)
+                    speechBubblePlayer.goToTarget(player, "Un de moins ...")
+                    speechBubblePlayer.setShow(True,3)
+                else :
+                    # Le joueur recommence au début du niveau
+                    self.goToStartOfLevel()
+                    speechBubblePlayer.goToTarget(player, "Je suis touché ...")
+                    speechBubblePlayer.setShow(True,3)
+                    # Le joueur perd une vie
+                    if self.player.getNbrLifes() > 0:
+                        self.player.lessLifes()
+                        hearts.refresh(self.player.getNbrLifes())
 
         if tokens :
             # Gestion des collisions avec les tokens
@@ -212,105 +374,120 @@ class MyGame(Game2D):
             self.goToStartOfLevel() # le joueur repart au début de la scène
             self.player.lessLifes() # il perd une vie
             hearts.refresh(self.player.getNbrLifes())
+            speechBubblePlayer.goToTarget(player, "Zut, je repars au début de l'étape ...")
+            speechBubblePlayer.setShow(True,3)
 
         # Mouvement des indicateurs
-        flags.move()
-        flag = flags.isCollide(player)
-        # Si l'indicateur est touché alors changement d'étape
-        if flag and flag.getCurrentAnimation() == "FIXED":
-            # Animation du FLAG
-            flag.setAnimation("FLOATING")
-            # Plus 1 dans les étapes du jeu
-            self.setValidationStep(flag)
-            chrono.stop()
+        if flags :
+            flags.move()
+            flag = flags.isCollide(player)
 
-        """
-        Gestion du niveau 1
-        """
-        if self.level == 1 :
-            """
-            Génération de monstres au niveau 1 après 3 secondes de jeu
-            """
-            if monsters == None and self.getChronoLevel() > 3 :
-                monster = self.generateMonster()
-                monsters = EntitiesManager(monster, 10, 100, 150, Game2D.SIZE[0], Game2D.SIZE[1]-300)
-                monsters.moveToTarget(player)
-                self.gravity.addObject(monsters)
-                self.collisionsManager.addMovingObject(monsters)
-            """
-            controle du temps du joueur sur le niveau 1
-            """
-            if self.getChronoStep() >= 10 and not(chrono.isStarted()) :
-                chrono.start(10)
-            if chrono.isFinished():
+            # Si l'indicateur est touché alors changement d'étape
+            if flag and flag.getCurrentAnimation() == "FIXED":
+                speechBubblePlayer.goToTarget(player, "Chouette je passe à l'étape suivante ...")
+                speechBubblePlayer.setShow(True,3)
+
+                # Animation du FLAG
+                flag.setAnimation("FLOATING")
+                # Plus 1 dans les étapes du jeu
+                self.setValidationStep(flag)
                 chrono.stop()
-                self.goToStartOfLevel() # le joueur repart au début de la scène
-                self.player.lessLifes() # il perd une vie
-                hearts.refresh(self.player.getNbrLifes())
+
+        if speechBubblePlayer :
+            speechBubblePlayer.move()
+
+        littleBirds.move()
+        if bigBirds :
+            bigBirds.move()
 
 
-    """
-    Dessiner tous les objets de votre jeu
-    """
-    # en arrière
-    def myDisplayBehind(self, camera, screen):
-        pass
+    """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+    Dessiner les objets de votre jeu
+
+    """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+    def myDisplayBehind(self, screen, camera):
+        imageFond.draw(screen)
+        sun.draw(screen)
 
 
+    """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+    Dessiner les objets de votre jeu
+
+    """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
     # devant
-    def myDisplayInFront(self, camera, screen):
+    def myDisplayInFront(self, screen, camera):
 
         # Dessin des plateformes
-        platform01.draw(camera)
-        platform02.draw(camera)
-        platform03.draw(camera)
+        platform01.draw(screen, camera)
+        platform02.draw(screen, camera)
+        platform03.draw(screen, camera)
+        platform04.draw(screen, camera)
+
+        if gate :
+            gate.draw(screen, camera)
 
         if tokens :
             # Dessin des jetons
-            tokens.draw(camera)
-        """
-        if flag:
-            # Dessin du flag de niveau
-            flag.draw(camera)
-        """
+            tokens.draw(screen, camera)
 
         # Dessin des monstres
         if monsters :
-            monsters.draw(camera)
+            monsters.draw(screen, camera)
 
         # Dessin des monstres
         if flags :
-            flags.draw(camera)
+            flags.draw(screen, camera)
+
+        littleBirds.draw(screen, camera)
+        if bigBirds :
+            bigBirds.draw(screen, camera)
 
         # Dessin du joueur
-        player.draw(camera)
+        player.draw(screen, camera)
 
         # Affichage du niveau
         if levelDisplay :
-            levelDisplay.draw(screen, "Level : " + str(self.level) + " step : " + str(self.step))
+            levelDisplay.setText(str(self.level) + " step : " + str(self.step))
+            levelDisplay.draw(screen)
 
         # Affichage des nombre de vies
         hearts.draw(screen)
 
         chrono.draw(screen)
 
+        if speechBubblePlayer :
+            speechBubblePlayer.draw(screen, camera)
 
-    """
+
+
+    """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
     Initialisation du jeu
     Initialiser tous les objets dont vous aurez besoin pour votre jeu
-    """
+
+    """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
     def myInitialization(self):
         global player
         global platform01
         global platform02
         global platform03
+        global platform04
+        global platform05
         global wall01
         global levelDisplay
         global hearts
-        global tokens
         global monsters
         global chrono
         global flags
+        global speechBubblePlayer
+        global littleBirds
+        global bigBirds
+        global gate
+        global imageFond
+        global sun
 
         # Création d'un joueur
         player = self.generatePlayer()
@@ -318,17 +495,17 @@ class MyGame(Game2D):
         # Indication au moteur du jeu le joueur
         self.setPlayer(player)
         # Création des plateformes
-        platform01 = Shape(5000, 480, 300, 30, (77, 52, 37))
+        platform01 = Shape(5000, 480, 300, 30, (77, 52, 37), "01")
         platform02 = Shape(730, 380, 500, 30, (77, 52, 37))
         platform03 = Shape(1260, 280, 50, 30, (77, 52, 37))
+        platform04 = Shape(10000, 400, 400, 30, (77, 52, 37), "04")
+
+        gate = self.Gate()
 
         # Création de murs
         wall01 = Shape(730, 390, 500, 700, (255,200,10))
 
-        levelDisplay = Text("", (Game2D.SCREEN_SIZE[0]/2)-40 , Game2D.SCREEN_SIZE[1]-40, Color.RED)
-
         monsters = None
-        tokens = None
         flags = None
 
         # Déclaration des objets soumis à la gravité
@@ -345,13 +522,32 @@ class MyGame(Game2D):
         Event.VELOCITY_UP = 1.1
         Event.VELOCITY_MAX = 20
 
+        # Gestion des touches de déplacement du joueur
+        Event.GO_RIGHT.append(100)
+        Event.GO_LEFT.append(113)
+        Event.UP_JUMP.append(122)
+
         # Création d'un chronmètre pour indiquer au joueur le temps restant sur une étape du jeu
-        chrono = Chronometer(Text("Step finished at : ", Game2D.SCREEN_SIZE[0]/2-180,10))
+        chrono = Chronometer(Text("Step finished at : ", (Game2D.SCREEN_SIZE[0]/2)-80, 10, size=24), None, "bip.wav", "Sounds")
 
         # génération de la barre des vies
-        hearts = LifeBar(self.player.getNbrLifes(), "heart.png", "images/token", 10, Game2D.SCREEN_SIZE[1]-40)
+        hearts = LifeBar(self.player.getNbrLifes(), "heart.png", "images/token", 10, 10, alpha=100)
 
-        DEBUG.active = False
+        speechBubblePlayer = SpeechBubble(100,100,200,10,Color.BUBBLE,20,-10, "Boite de dialogue du joueur", size = 20)
+        speechBubblePlayer.setShow(False)
+
+
+        littleBirds = self.generateLittleBird()
+
+
+        bigBird = self.generateBigBird()
+        bigBirds = None
+        bigBirds = EntitiesManager(bigBird, 5, 100, 100, 600, Game2D.SIZE[1]-300)
+
+        levelDisplay = Text("Level : ", (Game2D.SCREEN_SIZE[0]/2)-50 , Game2D.SCREEN_SIZE[1]-10, Color.RED,size = 16)
+
+        imageFond = ShapeImage("tiled/farwest/Background","Background_01.png")
+        sun = Circle(50, 50, 50, (255,255,0))
 
 """
 Lancement du jeu
@@ -366,8 +562,9 @@ Lancement du jeu
 
 # Amuse-toi à modifier l’écran
 myGame = MyGame("Mon premier jeu",
-                			6016, 640,
+                			11520, 640,
                 			1200, 640,
-                            (220, 220, 240), 60)
+                            (220, 220, 240), 10, False)
 
 myGame.run()
+

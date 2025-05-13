@@ -1,6 +1,7 @@
 import pygame
 import xml.etree.ElementTree as ET
 from .levelTiled import *
+from pathlib import Path
 
 ALPHA = 60
 COLLIDER_COLOR = (255,0,0)
@@ -55,10 +56,27 @@ class Levels_2D:
 
             self.resistance = resistance
 
+        def getGuidance(self):
+            return [0,0]
+
+        def getName(self):
+            return None
+
     # Chargement de l'image et découpe en tuiles
     def loadImages(self, nameTiles, imageTiles, firstgid, widthTile, heightTile):
         try:
-            image = pygame.image.load(self.PATHTILED+nameTiles).convert_alpha()
+
+            try:
+                image = pygame.image.load(Path(self.PATHTILED) / nameTiles if self.PATHTILED else nameTiles).convert_alpha()
+            except Exception as e:
+                print(
+                    "Une erreur est survenue lors de l'ouverture de image tile : "
+                    + self.PATHTILED
+                    + "/"
+                    + nameTiles,
+                    str(e),
+                )
+                image = None
 
             width, height = image.get_size()
             nbrTilesWidth = width//widthTile
@@ -91,8 +109,7 @@ class Levels_2D:
     # Chargement du fichier de configuration du fichier de description des images des tuiles
     def loadTilesetdXml(self, tilesetFile, imageTiles, firstgid, tilewidth, tileheight):
         try:
-
-            tree = ET.parse(self.PATHTILED+tilesetFile)
+            tree = ET.parse(Path(self.PATHTILED) / tilesetFile if self.PATHTILED else tilesetFile)
             root = tree.getroot()
             # Parcourir les tuiles de la carte
             for image in root.findall(".//image"):
@@ -119,7 +136,8 @@ class Levels_2D:
     def loadTiledXml(self, pathTiled, fileNameTiled):
 
         level = None
-        levelFile = pathTiled + fileNameTiled if pathTiled else fileNameTiled
+
+        levelFile = Path(pathTiled) / fileNameTiled if pathTiled else fileNameTiled
         # Chargement des niveaux
         levels = []
         root = None
@@ -156,35 +174,41 @@ class Levels_2D:
             tilesGroup = pygame.sprite.Group()
             for layer in root.findall(".//layer"):
 
-                layers = [[-1 for j in range(width)] for i in range(height)]
-                # Récupérer les données des tuiles (format CSV encodé)
-                data = layer.find('data').text
-                lignes = data.split('\n') # Séparation initiale par retour chariot
+                if not 'visible' in layer.attrib:
 
-                if lignes and len(lignes) > 0:
-                    # Parcourir chaque ligne
-                    r = 0
-                    for ligne in lignes:
-                        # Vérifier si la ligne n'est pas vide après le retrait des espaces et caractères vides
-                        if ligne and ligne.strip():
-                            # Si la ligne n'est pas vide, découper les valeurs par la virgule et ajouter à la liste des résultats
-                            valeurs = ligne.split(',')
-                            c = 0
-                            for valeur in valeurs:
-                                if valeur and valeur.strip() and int(valeur.strip())>0:
-                                    layers[r][c] = (int(valeur.strip())-1)
-                                c += 1
-                            r += 1
+                    layers = [[-1 for j in range(width)] for i in range(height)]
+                    # Récupérer les données des tuiles (format CSV encodé)
+                    data = layer.find('data').text
+                    lignes = data.split('\n') # Séparation initiale par retour chariot
+
+                    if lignes and len(lignes) > 0:
+                        # Parcourir chaque ligne
+                        r = 0
+                        for ligne in lignes:
+                            # Vérifier si la ligne n'est pas vide après le retrait des espaces et caractères vides
+                            if ligne and ligne.strip():
+                                # Si la ligne n'est pas vide, découper les valeurs par la virgule et ajouter à la liste des résultats
+                                valeurs = ligne.split(',')
+                                c = 0
+                                for valeur in valeurs:
+                                    if valeur and valeur.strip() and int(valeur.strip())>0:
+                                        layers[r][c] = (int(valeur.strip())-1)
+                                    c += 1
+                                r += 1
 
 
-                for row in range(height):
-                    for col in range(width):
-                        x = tilewidth*(col)
-                        y = tileheight*(row)
+                    for row in range(height):
 
-                        if layers[row][col]>=0 and imageTiles[layers[row][col]]:
-                            tile = self.Tile(imageTiles[layers[row][col]], x, y)
-                            tilesGroup.add(tile)
+                        for col in range(width):
+
+                            x = tilewidth*(col)
+                            y = tileheight*(row)
+
+                            if layers[row][col] < len(imageTiles) :
+
+                                if layers[row][col]>=0 and imageTiles[layers[row][col]]:
+                                    tile = self.Tile(imageTiles[layers[row][col]], x, y)
+                                    tilesGroup.add(tile)
 
             # Chargement des zones de collisions du jeu
             collidersGroup = pygame.sprite.Group()

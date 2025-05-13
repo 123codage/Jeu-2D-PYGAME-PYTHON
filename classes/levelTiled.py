@@ -3,7 +3,6 @@ from .common import *
 import time
 
 class Level_2D:
-
     def __init__(self,name,
                         nbrTilesWidth,nbrTilesHeight,
                         tileWidth,tileHeight,
@@ -20,16 +19,16 @@ class Level_2D:
         self.collidersFloor=collidersFloor
         self.collidersGroup=collidersGroup
 
-    def draw(self,screen,camera_x=0,camera_y=0):
+    def draw(self,screen,camera):
         index = 0
         for sprite in self.tilesGroup:
-            screen.blit(sprite.image, (sprite.rect.x,sprite.rect.y))
+            screen.blit(sprite.image, (sprite.rect.x - camera.x,sprite.rect.y - camera.y))
 
         if DEBUG.active :
             for sprite in self.collidersGroup:
-                screen.blit(sprite.image, (sprite.rect.x,sprite.rect.y))
+                screen.blit(sprite.image, (sprite.rect.x - camera.x,sprite.rect.y - camera.y))
             for sprite in self.collidersFloor:
-                screen.blit(sprite.image, (sprite.rect.x,sprite.rect.y))
+                screen.blit(sprite.image, (sprite.rect.x - camera.x,sprite.rect.y - camera.y))
 
     def getSize(self):
         return (self.nbrTilesWidth*self.tileWidth,self.nbrTilesHeight*self.tileHeight)
