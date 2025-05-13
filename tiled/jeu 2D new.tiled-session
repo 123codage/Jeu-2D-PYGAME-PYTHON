@@ -9,6 +9,10 @@
     ],
     "file.lastUsedOpenFilter": "Tous les Fichiers (*)",
     "fileStates": {
+        "Background-720.tsx": {
+            "scaleInDock": 1,
+            "scaleInEditor": 1
+        },
         "Background_01.tsx": {
             "scaleInDock": 1
         },
@@ -20,11 +24,38 @@
             "scaleInDock": 1
         },
         "Farwest Level 01.tmx": {
-            "scale": 2,
+            "expandedObjectLayers": [
+                5,
+                3
+            ],
+            "scale": 1,
             "selectedLayer": 3,
             "viewCenter": {
-                "x": 4104.25,
-                "y": 406.75
+                "x": 7858.5,
+                "y": 545.5
+            }
+        },
+        "Farwest Level 02 bis.tmx": {
+            "expandedObjectLayers": [
+                4,
+                3
+            ],
+            "scale": 1.5,
+            "selectedLayer": 3,
+            "viewCenter": {
+                "x": 6017.666666666666,
+                "y": 444.33333333333326
+            }
+        },
+        "Farwest Level 02.tmx": {
+            "expandedObjectLayers": [
+                3
+            ],
+            "scale": 1.5,
+            "selectedLayer": 2,
+            "viewCenter": {
+                "x": 6017.666666666666,
+                "y": 444.33333333333326
             }
         },
         "Ground_02.tsx": {
@@ -40,22 +71,55 @@
             "scaleInDock": 1
         },
         "Ground_11.tsx": {
+            "dynamicWrapping": false,
+            "scaleInDock": 1
+        },
+        "Jeu2D Level01.tmx": {
+            "expandedObjectLayers": [
+                3,
+                6
+            ],
+            "scale": 1,
+            "selectedLayer": 0,
+            "viewCenter": {
+                "x": 4798.5,
+                "y": 155.5
+            }
+        },
+        "Jeu2D Level02.tmx": {
+            "scale": 0.10693359375,
+            "selectedLayer": 0,
+            "viewCenter": {
+                "x": 4783.342465753424,
+                "y": -1220.3835616438355
+            }
+        },
+        "Jeu2D Serene_Village_32x32.tsx": {
+            "dynamicWrapping": true,
             "scaleInDock": 1
         },
         "Wall_C_02.tsx": {
             "scaleInDock": 1
         }
     },
-    "last.imagePath": "C:/Users/patri/Python Projects/Tutos Python/Pygame/tiled/farwest/Background",
-    "map.width": 180,
+    "last.imagePath": "C:/Users/patri/OneDrive/Desktop/ALGORA CULTURA/12 JEUX VIDEOS/JEUX 2D PLATFORMER/propositions MAP/Background",
+    "map.lastUsedFormat": "tmx",
+    "map.width": 360,
     "openFiles": [
-        "Background_01_v2.tsx",
-        "Farwest Level 01.tmx"
+        "Farwest Level 01.tmx",
+        "Farwest Level 02 bis.tmx",
+        "Farwest Level 02.tmx"
     ],
     "project": "jeu 2D new.tiled-project",
+    "property.type": "int",
     "recentFiles": [
+        "Farwest Level 02.tmx",
+        "Farwest Level 02 bis.tmx",
+        "Farwest Level 01.tmx",
         "Background_01_v2.tsx",
-        "Farwest Level 01.tmx"
+        "Background-720.tsx",
+        "Jeu2D Level01.tmx",
+        "Jeu2D Level02.tmx"
     ],
     "tileset.lastUsedFormat": "tsx"
 }
