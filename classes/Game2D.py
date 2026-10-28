@@ -1,13 +1,13 @@
 import pygame
 from pygame.locals import SRCALPHA
 from .common import *
+from .Movement import Event, Player, Projectile, Gravity, CollisionsManager, DestructionManager
 import time
 from classes.levelsTiled import Levels_2D
 import copy
 import random
-from pinpong.extension.unihiker import *
-from pinpong.board import Board,Pin
 from pathlib import Path
+import math
 
 class GUI:
 
@@ -209,32 +209,7 @@ class SpeechBubble(Entite2D):
 
             return lignes
 
-class Projectile(pygame.sprite.Sprite):
-    SPEED_MOVING = 30
 
-    def __init__(self, x, y, guidance):
-        super().__init__()
-
-        self.velocity = 5
-        self.image = Image.load("images/","bullet.png",(10,10))
-        self.rect = self.image.get_rect()
-        self.rect.x = x
-        self.rect.y = y
-        self.guidance = copy.copy(guidance)
-
-    def move(self):
-        if self.guidance[0] != 0:
-            self.rect.x = self.rect.x + (self.SPEED_MOVING * self.guidance[0])
-            if self.rect.x > Game2D.SCREEN_SIZE[0] or self.rect.x < 0 :
-                return True
-        elif self.guidance[1] != 0:
-            self.rect.y = self.rect.y + (self.SPEED_MOVING * (1 if self.guidance[1] > 0 else -1))
-            if self.rect.y > Game2D.SCREEN_SIZE[1] or self.rect.y < 0 :
-                return True
-        return False
-
-    def draw(self, screen, camera = Camera()):
-        screen.blit(self.image, (self.rect.x - camera.x, self.rect.y - camera.y))
 
 """
 Animation visuelle et sonore d'un objet 2D
@@ -364,7 +339,8 @@ class Animation(pygame.sprite.Sprite):
             for name, sounds in self.soundAnimationGroup.items():
                 for index, sound in enumerate(sounds):
                     try:
-                        sounds[index] = pygame.mixer.Sound(Path(soundPath) / sound if soundPath else sound)
+                        sounds[index] = Audio.load(Path(soundPath) / sound if soundPath else sound)
+                        #sounds[index] = pygame.mixer.Sound(Path(soundPath) / sound if soundPath else sound)
                         self.soundAnimationGroup[name] = sounds
                     except Exception as e:
                             print(
@@ -486,61 +462,6 @@ class Animation(pygame.sprite.Sprite):
         """
         return self.shift_y
 
-"""
-Animation visuelle et sonore d'un objet avant de mourir
-
-Exemple d'utilisation :
-self.destructionManager.addEntity(monster,1, "DEAD")
-
-"""
-class DestructionManager:
-    """
-    Initialise le gestionnaire de destruction.
-    """
-
-    def __init__(self):
-        self.entitiesDestroyGroup = []
-
-    def addEntity(self, entity, delay = 0, animation = None):
-        """
-        Ajoute une entité à la liste de destruction.
-
-        :param entity: Entité à ajouter.
-        :param delay: Délai avant la destruction de l'entité (par défaut 0).
-        :param animation: Animation à jouer avant la destruction (par défaut None).
-        """
-
-        newEntity = copy.copy(entity)
-        self.entitiesDestroyGroup.append((newEntity, delay, pygame.time.get_ticks()))
-
-        if newEntity.animations and animation :
-            newEntity.animations.move(animation)
-
-    def move(self):
-        """
-        Met à jour les entités et vérifie si elles doivent être détruites.
-        """
-
-        for item_deleted in self.entitiesDestroyGroup:
-            entity_deleted = item_deleted[0]
-            delay = item_deleted[1]
-            last_ticks = item_deleted[2]
-
-            if pygame.time.get_ticks() - last_ticks >= (delay*1000):
-                self.entitiesDestroyGroup = [item for item in self.entitiesDestroyGroup if item != item_deleted]
-
-        for item in self.entitiesDestroyGroup:
-            item[0].move()
-
-    def draw(self, screen, camera = Camera()):
-        """
-        Dessine les entités sur l'écran.
-
-        :param screen: Surface sur laquelle dessiner.
-        :param camera: Caméra utilisée pour le rendu (par défaut None).
-        """
-        for item in self.entitiesDestroyGroup:
-            item[0].draw(screen, camera)
 
 """
 Génération et gestion de plusieurs entités
@@ -680,582 +601,8 @@ class EntitiesManager:
 
         for entity in self.entitiesGroup:
             entity.moveToTarget(target, velocity)
-"""
-Exemple d'utilisation :
 
-    # Génération du player et de ses animations graphiques et sonores
-    def generatePlayer(self):
-        # Création d'un joueur
-        player = Player(300, 200, 10, 20, Color.GREEN)
 
-        # Définition des animations du joueur
-        ANIMATIONS_PLAYER = {"DOWN" : ["devant01.png",
-                                            "devant02.png",
-                                            "devant03.png"],
-                             "UP" : ["dos01.png",
-                                          "dos02.png",
-                                          "dos03.png"],
-                             "LEFT" : ["cotegauche01.png",
-                                               "cotegauche02.png",
-                                               "cotegauche03.png"],
-                             "RIGHT" : ["cotedroit01.png",
-                                                 "cotedroit02.png",
-                                                 "cotedroit03.png"],
-                             "IDLE" : ["attendredevant.png"],
-                             "IDLEDOWN" : ["attendredevant.png"],
-                             "IDLEUP" : ["attendredos.png"],
-                             "IDLELEFT" : ["attendregauche.png"],
-                             "IDLERIGHT" : ["attendredroit.png"]}
-
-        SOUNDS_PLAYER = { "UP" : ["jump_01.wav"],
-                          "LEFT" : ["SF-course_beton-2.mp3"],
-                          "RIGHT" : ["SF-course_beton-2.mp3"]}
-
-        animation = Animation(ANIMATIONS_PLAYER, "images/player", (100, 200),  scale=0.25, delay=5, soundAnimation = SOUNDS_PLAYER, soundPath = "sounds")
-
-        # Affectation de l'animation au joueur
-        player.loadAnimations(animation, "IDLE", 8, 30)
-
-        player.setNbrLifes(5)
-
-        return player
-
-
-    # Création d'un joueur
-    player = self.generatePlayer()
-
-    # Indication au moteur du jeu le joueur
-    self.setPlayer(player)
-
-    # Dessin du joueur
-    player.draw(screen, camera)
-
-
-"""
-class Player(Entite2D):
-
-    def __init__(
-        self,
-        x=10,
-        y=10,
-        width=50,
-        height=50,
-        color=Color.DEFAULT,
-        nbrLifes = 0
-    ):
-        """
-        Initialise le joueur.
-
-        :param x: Position x initiale (par défaut 10).
-        :param y: Position y initiale (par défaut 10).
-        :param width: Largeur du joueur (par défaut 50).
-        :param height: Hauteur du joueur (par défaut 50).
-        :param color: Couleur du joueur (par défaut Color.DEFAULT).
-        :param nbrLifes: Nombre de vies du joueur (par défaut 0).
-        """
-        super().__init__(x, y, width, height, color)
-
-        pygame.draw.rect(self.surface, self.color, self.surface.get_rect())
-
-        self.state = "IDLE"
-        self.guidance = [0, 0]
-        self.start_moving = time.time()
-        self.speed_moving = Event.VELOCITY
-        self.threshold_moving = 0.8
-        self.start_idle = time.time()
-        self.threshold_idle = 0.5
-        self.all_projectiles = pygame.sprite.Group()
-        self.nbrLifes = nbrLifes
-
-    def move(self, guidance):
-        """
-        Déplace le joueur en fonction de la guidance.
-
-        :param guidance: Liste contenant les directions de déplacement [x, y].
-        :return: Nouvelle position du joueur (x, y).
-        """
-
-        originx = self.rect.x
-        originy = self.rect.y
-
-        if guidance[0] == 0 and guidance[1] == 0:
-            self.start_moving = time.time()
-            if self.state and self.state[0:4] != "IDLE":
-                self.state = "IDLE" + self.state
-                self.start_idle = time.time()
-            else:
-                if ((time.time() - self.start_idle) > self.threshold_idle):
-                    self.state = "IDLE"
-        else:
-            if ((time.time() - self.start_moving) > self.threshold_moving) :
-                #self.speed_moving *= Event.VELOCITY_UP
-                self.speed_moving = self.speed_moving ** 2
-                if self.speed_moving > Event.VELOCITY_MAX:
-                    self.speed_moving = Event.VELOCITY_MAX
-            else:
-                self.speed_moving = Event.VELOCITY
-
-            if guidance[1] > 0:
-                if not(self.isStick()):
-                    self.state = "DOWN"
-                else:
-                    self.state = "IDLE"
-                    guidance[1] = 0
-                self.rect.y += self.guidance[1]
-
-            if guidance[0] > 0:
-                self.state = "RIGHT"
-                self.rect.x = self.rect.x + (self.speed_moving * guidance[0])
-                if self.rect.x + (self.width//2) > Game2D.SIZE[0] :
-                    self.rect.x = Game2D.SIZE[0] - (self.width//2) - 1
-
-                x = (self.rect.x - (Game2D.SCREEN_SIZE[0]//2) if self.rect.x > (Game2D.SCREEN_SIZE[0]//2) else 0)
-                if (Game2D.SIZE[0] - self.rect.x) < (Game2D.SCREEN_SIZE[0]//2):
-                    x = Game2D.SIZE[0] - (Game2D.SCREEN_SIZE[0])
-
-            if guidance[0] < 0:
-                self.state = "LEFT"
-                self.rect.x = self.rect.x + (self.speed_moving * guidance[0])
-                if self.rect.x + (self.width//2) < 0 :
-                    self.rect.x = 1 - (self.width//2)
-
-            if guidance[1] < 0 and self.isStick():
-                self.state = "UP"
-                self.rect.y += guidance[1]
-                self._setStick(None)
-
-        if Event.lauch:
-            self.start_idle = time.time()
-            self.addProjectiles(self.guidance)
-
-        if self.animations :
-            self.animations.move(self.state)
-
-        x = max(0, self.rect.x - (Game2D.SCREEN_SIZE[0] // 2))
-        y = max(0, self.rect.y - (Game2D.SCREEN_SIZE[1] // 2))
-
-        if (Game2D.SIZE[0] - self.rect.x) < ((Game2D.SCREEN_SIZE[0]//2)):
-            x = Game2D.SIZE[0] - (Game2D.SCREEN_SIZE[0])
-
-        if (Game2D.SIZE[1] - self.rect.y) < (Game2D.SCREEN_SIZE[1]//2):
-            y = Game2D.SIZE[1] - ((Game2D.SCREEN_SIZE[1]))
-
-        self.guidance = [originx - self.rect.x, originy - self.rect.y]
-
-        if len(self.all_projectiles) > 0 :
-            for projectile in self.all_projectiles:
-                if projectile.move():
-                    pygame.sprite.Group.remove(self.all_projectiles, projectile)
-
-        return x, y
-
-    def draw(self, screen, camera = Camera()):
-        """
-        Dessine le joueur sur l'écran.
-
-        :param screen: Surface sur laquelle dessiner.
-        :param camera: Caméra utilisée pour suivre le joueur.
-        """
-        if not self.hide :
-
-            if self.animations :
-                self.animations.draw(screen, camera, self.rect.x, self.rect.y)
-                if DEBUG.active:
-                    self.surface.convert_alpha()
-                    self.surface.set_alpha(DEBUG.alpha)
-                    self.surface.fill(DEBUG.color)
-                    screen.blit(self.surface,
-                            (self.rect.x - camera.x,
-                             self.rect.y - camera.y))
-
-            else:
-                screen.blit(self.surface, (self.rect.x - camera.x, self.rect.y - camera.y))
-
-            if len(self.all_projectiles) > 0 :
-                for projectile in self.all_projectiles:
-                    projectile.draw(screen)
-
-    def addProjectiles(self, guidance):
-        """
-        Ajoute un projectile en fonction de la guidance.
-
-        :param guidance: Liste contenant les directions de déplacement [x, y].
-        """
-        if guidance[0] != 0 or guidance[1] != 0:
-            self.all_projectiles.add(Projectile(self.rect.x, self.rect.y, guidance))
-
-    def getNbrLifes(self):
-        """
-        Obtient le nombre de vies du joueur.
-
-        :return: Nombre de vies.
-        """
-        return self.nbrLifes
-
-    def setNbrLifes(self, nbrLifes):
-        """
-        Définit le nombre de vies du joueur.
-
-        :param nbrLifes: Nombre de vies à définir.
-        """
-        self.nbrLifes = nbrLifes
-
-    def lessLifes(self, nbr = 1):
-        """
-        Réduit le nombre de vies du joueur.
-
-        :param nbr: Nombre de vies à réduire (par défaut 1).
-        """
-        self.nbrLifes -= nbr
-
-    def moreLifes(self, nbr = 1):
-        """
-        Augmente le nombre de vies du joueur.
-
-        :param nbr: Nombre de vies à ajouter (par défaut 1).
-        """
-        self.nbrLifes += nbr
-
-class Event:
-    quit = False
-    key = 0
-    keydown = False
-    guidance = [0, 0]
-    mouse = False
-    mousexy = [0, 0]
-    button1 = False
-    button2 = False
-    lauch = False
-
-    JUMP = 10
-    VELOCITY = 2
-    VELOCITY_MAX = 20
-    VELOCITY_UP = 1.1
-
-    key = 0
-
-    GO_RIGHT = [pygame.K_RIGHT]
-    GO_LEFT = [pygame.K_LEFT]
-    UP_JUMP = [pygame.K_UP]
-    TO_LAUNCH = [pygame.K_SPACE]
-    GO_DOWN = [pygame.K_DOWN]
-
-    screenRotation = False
-
-    def set(events):
-        """
-        Met à jour les événements en fonction des interactions utilisateur.
-
-        :param events: Liste des événements Pygame.
-        """
-
-        Event.quit = False
-        Event.keydown = False
-        Event.mouse = False
-        Event.lauch = False
-
-        if accelerometer.get_x() == 9:
-            pass
-        elif accelerometer.get_x() < -0.1:
-            if Event.screenRotation :
-                Event.guidance[0] = (accelerometer.get_x() * 10) * -1
-            else:
-                Event.guidance[1] = Event.JUMP * (-1)
-
-        elif accelerometer.get_x() > 0.1:
-            if Event.screenRotation :
-                Event.guidance[0] = (accelerometer.get_x() * 10) * -1
-            else:
-                Event.guidance[1] = 0
-        else:
-            if Event.screenRotation :
-                Event.guidance[0] = 0
-            else:
-                Event.guidance[1] = 0
-
-
-        if accelerometer.get_y() == 9:
-            pass
-        elif accelerometer.get_y() < -0.1:
-            if Event.screenRotation :
-                Event.guidance[1] = Event.JUMP * (-1)
-            else:
-                Event.guidance[0] = (accelerometer.get_x() * 10)
-
-        elif accelerometer.get_y() > 0.1:
-            if Event.screenRotation :
-                Event.guidance[1] = 0
-            else:
-                Event.guidance[0] = (accelerometer.get_x() * 10) * -1
-        else:
-            if Event.screenRotation :
-                Event.guidance[1] = 0
-            else:
-                Event.guidance[0] = 0
-
-
-        for event in events:
-            if event.type == pygame.QUIT:
-                Event.quit = True
-
-            elif event.type == pygame.KEYDOWN:
-                Event.keydown = True
-                Event.key = event.key
-
-                if event.key == pygame.K_ESCAPE:
-                    Event.quit = True
-                # Gestion du clavier et des mouvements
-                if event.key in Event.GO_LEFT:
-                    Event.guidance[0] = (-1*Event.VELOCITY)
-                elif event.key in Event.GO_RIGHT:
-                    Event.guidance[0] = Event.VELOCITY
-                elif event.key in Event.UP_JUMP:
-                    Event.guidance[1] = Event.JUMP * (-1)
-                elif event.key in Event.TO_LAUNCH:
-                    Event.lauch = True
-                elif event.key in Event.GO_DOWN:
-                    Event.guidance[1] = Event.VELOCITY
-
-            elif event.type == pygame.KEYUP:
-                if event.key in Event.GO_LEFT or event.key in Event.GO_RIGHT:
-                    Event.guidance[0] = 0
-                if event.key in Event.UP_JUMP :
-                    Event.guidance[1] = 0
-                Event.lauch = False
-
-            elif event.type == pygame.MOUSEBUTTONDOWN:
-                if event.button == 1:
-                    Event.mouse = True
-                    Event.button1 = True
-                elif event.button == 3:
-                    Event.mouse = True
-                    Event.button2 = True
-            elif event.type == pygame.MOUSEBUTTONUP:
-                Event.mouse = False
-                Event.guidance = [0, 0]
-                if event.button == 1:
-                    Event.button1 = False
-                elif event.button == 3:
-                    Event.button2 = False
-            elif event.type == pygame.MOUSEMOTION:
-                x, y = event.rel
-                #print("Mouvement de la souris à la position:", event.pos, "Relatif:", event.rel)
-                if Event.mousexy != [x, y]:
-                    Event.mouse = True
-                    Event.mousexy[0], Event.mousexy[1] = event.pos
-
-                if Event.button1 and Event.mouse:
-                    if Event.screenRotation :
-                        if y > 0:
-                            Event.guidance[0] = -1 * Event.VELOCITY
-                        elif y < 0:
-                            Event.guidance[0] = Event.VELOCITY
-                        elif x > 0:
-                            Event.guidance[1] = Event.VELOCITY
-                        elif x < 0:
-                            Event.guidance[1] = Event.JUMP * (-1)
-                        else :
-                            Event.guidance = [0, 0]
-                            Event.lauch = False
-                    else :
-                        if x < 0:
-                            Event.guidance[0] = -1 * Event.VELOCITY
-                        elif x > 0:
-                            Event.guidance[0] = Event.VELOCITY
-                        elif y > 0:
-                            Event.guidance[1] = Event.VELOCITY
-                        elif y < 0:
-                            Event.guidance[1] = Event.JUMP * (-1)
-                        else :
-                            Event.guidance = [0, 0]
-                            Event.lauch = False
-
-
-
-class CollisionsManager:
-    def __init__(self, gravity = None):
-        """
-        Initialise le gestionnaire de collisions.
-        """
-        self.collidersGroup = []
-        self.movingObjectsGroup = []
-        self.gravity = gravity
-
-    def addCollider(self, collider):
-        """
-        Ajoute un collider au groupe de colliders.
-
-        :param collider: Collider à ajouter.
-        """
-        self.collidersGroup.append(collider)
-        if self.gravity:
-            self.gravity.addFloor(collider)
-
-    def getCollider(self):
-        """
-        Récupération du groupe de colliders.
-
-        :return le groupe de collider
-        """
-        return self.collidersGroup
-
-
-    def addMovingObject(self, movingObject):
-        """
-        Ajoute un objet en mouvement au groupe d'objets en mouvement.
-
-        :param movingObject: Objet en mouvement à ajouter.
-        """
-
-        if isinstance(movingObject, list):
-            for mobject in movingObject:
-                self.movingObjectsGroup.append(mobject)
-        elif isinstance(movingObject, EntitiesManager):
-            for mobject in movingObject.getList():
-                self.movingObjectsGroup.append(mobject)
-        else:
-            self.movingObjectsGroup.append(movingObject)
-
-    def move(self):
-        """
-        Met à jour les positions des objets en mouvement en fonction des collisions.
-        """
-        for collider in self.collidersGroup:
-
-            if isinstance(collider, pygame.sprite.Sprite):
-                for movingObject in self.movingObjectsGroup:
-                    self._handleCollision(movingObject, collider)
-
-            if isinstance(collider, pygame.sprite.Group):
-                for movingObject in self.movingObjectsGroup:
-                    collides = pygame.sprite.spritecollide(movingObject, collider, False)
-                    if collides and len(collides) > 0:
-                        self._handleCollision(movingObject, collides[0])
-
-    def _handleCollision(self, movingObject, collider):
-        """
-        Gère la collision entre un objet en mouvement et un collider.
-
-        :param movingObject: Objet en mouvement.
-        :param collider: Collider.
-        """
-        if movingObject.getGuidance()[0] != 0 or movingObject.getGuidance()[1] != 0 :
-            while movingObject.rect.colliderect(collider):
-                if movingObject.getGuidance()[0] != 0 :
-                    movingObject.rect.x += 1 if movingObject.getGuidance()[0] > 0 else -1
-                if movingObject.getGuidance()[1] != 0 :
-                    movingObject.rect.y += 1 if movingObject.getGuidance()[1] > 0 else -1
-
-
-
-class Gravity:
-    def __init__(self, gravity=40):
-        """
-        Initialise le gestionnaire de gravité.
-
-        :param gravity: Valeur de la gravité (par défaut 40).
-        """
-        self.gravity = gravity // 10
-        self.collidersGroup = []
-        self.collidersFloor = []
-
-    def initFloor(self, floor):
-        """
-        Initialise le sol avec un objet ou une liste d'objets.
-
-        :param floor: Objet ou liste d'objets représentant le sol.
-        """
-        self.collidersFloor = []
-        self.collidersFloor.append(floor)
-
-    def addFloor(self, floor):
-        """
-        Ajoute un sol au groupe de sols.
-
-        :param floor: Objet ou liste d'objets représentant le sol.
-        """
-        self.collidersFloor.append(floor)
-        if isinstance(floor, list):
-            for f in floor:
-                self.collidersFloor.append(f)
-        else:
-            self.collidersFloor.append(floor)
-
-    def addObject(self, obj):
-        """
-        Ajoute un objet au groupe de colliders.
-
-        :param obj: Objet ou liste d'objets à ajouter.
-        """
-        if isinstance(obj, list):
-            for mobj in obj:
-                self.collidersGroup.append(mobj)
-        elif isinstance(obj, EntitiesManager):
-            for mobj in obj.getList():
-                self.collidersGroup.append(mobj)
-        else:
-            self.collidersGroup.append(obj)
-
-    def move(self, guidance):
-        """
-        Met à jour les positions des objets en fonction de la gravité.
-
-        :param guidance: Liste contenant les directions de déplacement [x, y].
-        """
-        if self.collidersGroup and self.collidersFloor :
-
-            for collider in self.collidersGroup:
-
-                if not (collider in self.collidersFloor):
-
-                    if (collider.isStick() and
-                        collider._getStick().getGuidance()[1] != 0 and
-                        collider.getGuidance()[1] == 0):
-                        collider.rect.y = collider._getStick().rect.y - collider.height
-
-                    floorTouched = None
-                    if collider.speed > 0:
-                        collider._setStick(floorTouched)
-
-                    origin = collider.rect.y
-                    originy = origin
-                    increment = 1 if collider.speed > 0 else -1
-
-                    while (collider.rect.y != (origin + collider.speed) and
-                          floorTouched is None) :
-
-                        for floor in self.collidersFloor:
-                            # Recherche d'un objet ou un groupe d'objets en collision avec un sol
-                            if floor is not collider :
-                                if isinstance(floor, pygame.sprite.Sprite):
-                                    if floor.rect.colliderect(collider):
-                                        floorTouched = floor
-                                        break
-                                if isinstance(floor, pygame.sprite.Group):
-                                    collides = pygame.sprite.spritecollide(collider,
-                                                                           floor,
-                                                                           False)
-                                    if collides and len(collides) > 0:
-                                        floorTouched = collides[0]
-                                        break
-
-                        if floorTouched is None :
-                            originy = collider.rect.y
-
-                        if (floorTouched and
-                            (collider.rect.y + collider.height - 5) >= floorTouched.rect.y):
-                            floorTouched = None
-
-                        collider.rect.y += increment
-
-                    # un sol est touché
-                    #if floorTouched and (originy + collider.height - 5) <= floorTouched.rect.y :
-                    if floorTouched :
-                        collider.rect.y = originy
-                        collider.speed = 0
-                        collider._setStick(floorTouched)
-                    else:
-                        collider.speed += self.gravity
 
 """
 Exemple d'utilisation :
@@ -1323,13 +670,16 @@ class Game2D:
     FPS = 20
 
     def __init__(self,
-                 caption,
-                 game2D_width=3000,
-                 game2D_height=3000,
-                 screen_width=800,
-                 screen_height=600,
+                 caption="My first game",
+                 game2D_width=32*200,
+                 game2D_height=32*20,
+                 screen_width=1200,
+                 screen_height=640,
                  fill_color=Color.LIGHTGRAY,
-                 fps=20, screenRotation = False):
+                 fps=20,
+                 screenRotation = False,
+                 gravity = 2000,
+                 volume=1.0):
         """
         Initialise le jeu 2D.
 
@@ -1341,6 +691,7 @@ class Game2D:
         :param fill_color: Couleur de remplissage de la fenêtre (par défaut Color.LIGHTGRAY).
         :param fps: Nombre d'images par seconde (par défaut 20).
         :param screenRotation: Indique si la fenêtre en paysage ou portrait (par défaut paysage).
+        :param gravity: force de la garvité 1 à 20
         """
 
         self.FPS = fps
@@ -1376,6 +727,10 @@ class Game2D:
 
         self.day = 600
         self.step_day = 0
+
+        self.gravity = gravity
+
+        Audio.master = Audio._clamp(volume)
 
     def getHourDay(self):
         return self.day //60 if self.day > 0 else 0
@@ -1477,38 +832,36 @@ class Game2D:
         """
         pass
 
+    def _updateCamera(self, dt):
+        if not self.player:
+            return
+        sw, sh = self.SCREEN_SIZE
+        tx = min(max(self.player.rect.centerx - sw / 2, 0), max(0, self.SIZE[0] - sw))
+        ty = min(max(self.player.rect.centery - sh / 2, 0), max(0, self.SIZE[1] - sh))
+        if abs(tx - self._camx) > sw:                     # téléportation / respawn : on recale d'un coup
+            self._camx, self._camy = tx, ty
+        else:
+            k = 1 - math.exp(-10 * dt)                    # lissage indépendant du FPS
+            self._camx += (tx - self._camx) * k
+            self._camy += (ty - self._camy) * k
+        self.camera.x, self.camera.y = round(self._camx), round(self._camy)
+
     # Modification des objets du jeu
-    def _update(self):
-        """
-        Met à jour les objets du jeu.
-        """
-        # Changement de niveau
-        if self.levels:
-            if self.levels.getCurrentLevel():
-                if self.levels.getCurrentLevel().isChanged():
-                    pygame.display.set_caption(self.CAPTION +
-                                               " (" +
-                                               self.levels.getCurrentLevel().name +
-                                               ")")
+    def _update(self, dt):
+        if self.levels and self.levels.getCurrentLevel() and self.levels.getCurrentLevel().isChanged():
+            pygame.display.set_caption(f"{self.CAPTION} ({self.levels.getCurrentLevel().name})")
 
         self.myUpdateLevel(self.level, self.step)
+        self.myUpdate()                                   # les plateformes bougent ici
 
-        self.myUpdate()
+        if self.player:
+            self.player.move(dt, self.collisionsManager)  # X + saut
+        self.gravity.move(dt)                             # Y + atterrissage + plateformes mobiles
+        self.collisionsManager.move()
+        self.destructionManager.move()
+        self.scheduler.move()
+        self._updateCamera(dt)
 
-        if self.player :
-            self.camera.x, self.camera.y = self.player.move(Event.guidance)
-
-        if self.gravity:
-            self.gravity.move(Event.guidance)
-
-        if self.collisionsManager:
-            self.collisionsManager.move()
-
-        if self.destructionManager:
-            self.destructionManager.move()
-
-        if self.scheduler:
-            self.scheduler.move()
 
 
     def myDisplayBehind(self, screen, camera = Camera()):
@@ -1588,6 +941,9 @@ class Game2D:
         :param player: Joueur à définir.
         """
         self.player = player
+        player.bounds = pygame.Rect(0, 0, self.SIZE[0], self.SIZE[1])
+        self.init_x, self.init_y = player.getStartPoint()
+
 
     def loadTiled(self, fileName, path=None, level= -1, x = -1 , y = -1, sound=None, volume=0.05):
         """
@@ -1622,7 +978,9 @@ class Game2D:
             # 'sounds/ambiance/tearstream-alley-262939.mp3'
             pygame.mixer.music.load(sound)
             # Régler le volume de la musique d'ambiance (0.0 à 1.0)
-            pygame.mixer.music.set_volume(volume)  # 50% du volume
+            Audio.music = Audio._clamp(volume)
+            Audio.apply()
+            #pygame.mixer.music.set_volume(volume)  # 50% du volume
             # Jouer la musique en boucle
             pygame.mixer.music.play(loops=-1)
 
@@ -1635,66 +993,42 @@ class Game2D:
             self.player.goToTarget([self.init_x, self.init_y])
             self.startChronoStep = time.time()
 
-    def run(self, debug = False):
-        """
-        Lance le jeu.
-        """
+    def run(self, debug=False):
         DEBUG.active = debug
-
-        # Initialisation du jeu et création de la fenêtre du jeu
         pygame.init()
-
-        Board().begin()
-        gui = GUI()
-
-        Event.screenRotation = self.screenRotation
-
-        if self.screenRotation :
-            self.screen = pygame.display.set_mode((Game2D.SCREEN_SIZE[1],
-                                                   Game2D.SCREEN_SIZE[0]))
+        Event.USE_TILT = False
+        try:
+            from pinpong.board import Board
+            Board().begin()
+        except Exception:
+            pass
         else:
-            self.screen = pygame.display.set_mode((Game2D.SCREEN_SIZE[0],
-                                                   Game2D.SCREEN_SIZE[1]))
+            Event.USE_TILT = True
 
+        # (garde ton bloc Board guardé ci-dessus)
+        Event.screenRotation = self.screenRotation
+        Game2D.FPS = self.FPS                      # Animation lit Game2D.FPS (classe), pas self.FPS
+        self.screen = pygame.display.set_mode(
+            (self.SCREEN_SIZE[1], self.SCREEN_SIZE[0]) if self.screenRotation
+            else (self.SCREEN_SIZE[0], self.SCREEN_SIZE[1]))
         self.camera = Camera()
-
+        self._camx = self._camy = 0.0
         pygame.display.set_caption(self.CAPTION)
 
-        self.gravity = Gravity()
+        self.gravity = Gravity(self.gravity)
         self.collisionsManager = CollisionsManager(self.gravity)
         self.destructionManager = DestructionManager()
-
-        running = True
+        clock = pygame.time.Clock()                # créé UNE fois (avant : à chaque frame)
 
         self.myInitialization()
-
+        running = True
         while running:
-
-            # Vitesse d'affichage
-            pygame.time.Clock().tick(self.FPS)
-
-            # Gestion des intéractions clavier avec le joueur
+            dt = min(clock.tick(self.FPS) / 1000.0, 0.05)   # plafonné pour éviter les sauts après un lag
             Event.set(pygame.event.get())
             if Event.quit:
-                running = False
-            if Event.key == pygame.KEYDOWN:
-                running = False
-            # Modification en cours du jeu
-            self._update()
-            # Affichage du jeu
+                break
+            self._update(dt)
             self._display()
-
-            if self.step_day > 0 :
-
-                self.day += self.step_day
-                if self.day > 1440 :
-                        self.day = 0
-                if self.nightlight > 0 :
-                    if self.day < 500 or self.day > 1320 :
-                        self.daylight = self.nightlight
-                    else:
-                        self.daylight = 0
-
-        # Arrêt du jeu
+            # (garde ton bloc cycle jour/nuit ici)
         pygame.quit()
 

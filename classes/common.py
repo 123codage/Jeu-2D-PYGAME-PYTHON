@@ -241,7 +241,9 @@ class Entite2D(pygame.sprite.Sprite):
         :param collider: Objet à vérifier.
         :return: True si sauté, False sinon.
         """
-        return self.rect.colliderect(collider) and not collider.isStick()
+        return (self.rect.colliderect(collider.rect)
+                and getattr(collider, "speed", 0) > 0
+                and collider.rect.bottom - self.rect.top <= max(12, self.height * 0.5))
 
     def _getStick(self):
         """
@@ -884,7 +886,8 @@ class Chronometer:
 
         if sound:
             try:
-                self.sound = pygame.mixer.Sound(Path(soundPath) / sound if soundPath else sound)
+                self.sound = Audio.load(Path(soundPath) / sound if soundPath else sound)
+                #self.sound = pygame.mixer.Sound(Path(soundPath) / sound if soundPath else sound)
             except Exception as e:
                 print(
                     "Une erreur est survenue lors de l'ouverture du fichier : "
@@ -1076,5 +1079,54 @@ class Transform():
         if originalImage and scale:
             return pygame.transform.scale(originalImage, scale)
 
+class Audio:
+    master = 1.0       # volume général 0.0 à 1.0
+    sfx = 1.0          # effets sonores
+    music = 0.05       # musique d'ambiance
+    muted = False
+    _sounds = []       # (Sound, volume de base)
 
+    @staticmethod
+    def _clamp(v):
+        return max(0.0, min(1.0, float(v)))
+
+    @staticmethod
+    def _effective(base=1.0):
+        return 0.0 if Audio.muted else Audio.master * Audio.sfx * base
+
+    @staticmethod
+    def load(file, volume=1.0):
+        """Charge un effet sonore et l'enregistre pour pouvoir changer son volume ensuite."""
+        sound = pygame.mixer.Sound(file)
+        sound.set_volume(Audio._effective(volume))
+        Audio._sounds.append((sound, volume))
+        return sound
+
+    @staticmethod
+    def apply():
+        """Réapplique les volumes à tous les sons et à la musique."""
+        for sound, base in Audio._sounds:
+            sound.set_volume(Audio._effective(base))
+        if pygame.mixer.get_init():
+            pygame.mixer.music.set_volume(0.0 if Audio.muted else Audio.master * Audio.music)
+
+    @staticmethod
+    def setMaster(v):
+        Audio.master = Audio._clamp(v)
+        Audio.apply()
+
+    @staticmethod
+    def setSfx(v):
+        Audio.sfx = Audio._clamp(v)
+        Audio.apply()
+
+    @staticmethod
+    def setMusic(v):
+        Audio.music = Audio._clamp(v)
+        Audio.apply()
+
+    @staticmethod
+    def toggleMute():
+        Audio.muted = not Audio.muted
+        Audio.apply()
 
